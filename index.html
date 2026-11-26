@@ -783,4 +783,85 @@
           </div>
           <div class="info-item">
             <span>Working Hours</span>
-            <strong>Mon – Sat, 9:00 AM – 7:00 PM</
+            <strong>Mon – Sat, 9:00 AM – 7:00 PM</strong>
+          </div>
+          <div class="info-item">
+            <span>Consultation</span>
+            <strong>Free 30-Minute Technical Discovery Call</strong>
+          </div>
+        </div>
+
+        <form id="contactForm">
+          <input type="text" id="name" placeholder="Your Full Name" required />
+          <input type="email" id="email" placeholder="Your Email Address" required />
+          <select id="service">
+            <option value="Web & Mobile Development">Web &amp; Mobile Development</option>
+            <option value="Cloud & DevOps">Cloud &amp; DevOps</option>
+            <option value="Cybersecurity & Audits">Cybersecurity &amp; Audits</option>
+            <option value="General IT Consultation">General IT Consultation</option>
+          </select>
+          <textarea id="message" rows="4" placeholder="Tell us about your project goals..." required></textarea>
+          <button type="submit" class="btn-primary">Send Message</button>
+          <p id="status">&#10003; Thank you! Your inquiry has been received by E-Technology Solutions.</p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    &copy; 2026 E-Technology Solutions. All rights reserved.
+  </footer>
+
+  <!-- Client Portal Modal -->
+  <div class="modal-backdrop" id="portalModal">
+    <div class="modal">
+      <div class="modal-top">
+        <h3>Client Portal Login</h3>
+        <button type="button" class="close-btn" id="closePortal">&times;</button>
+      </div>
+      <p style="color: var(--muted); font-size: 0.88rem;">
+        Sign in to view project milestones, server status, and support tickets.
+      </p>
+      <input type="email" id="portalEmail" placeholder="Client Email" />
+      <input type="password" id="portalPass" placeholder="Password" />
+      <button type="button" class="btn-primary" id="portalLoginBtn">Sign In</button>
+      <p id="portalMsg" style="color: var(--neon); font-size: 0.85rem; display: none;"></p>
+    </div>
+  </div>
+
+  <script>
+    // Contact Form Submission
+    document.getElementById("contactForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      document.getElementById("status").style.display = "block";
+      this.reset();
+    });
+
+    // Client Portal Modal Controls
+    const modal = document.getElementById("portalModal");
+    const portalMsg = document.getElementById("portalMsg");
+
+    document.getElementById("openPortal").addEventListener("click", () => {
+      portalMsg.style.display = "none";
+      modal.classList.add("open");
+    });
+
+    document.getElementById("closePortal").addEventListener("click", () => {
+      modal.classList.remove("open");
+    });
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.classList.remove("open");
+    });
+
+    document.getElementById("portalLoginBtn").addEventListener("click", () => {
+      const email = document.getElementById("portalEmail").value.trim();
+      portalMsg.textContent = email
+        ? "Demo mode: Portal access link sent to " + email
+        : "Please enter your client email address.";
+      portalMsg.style.display = "block";
+    });
+  </script>
+
+</body>
+</html>
