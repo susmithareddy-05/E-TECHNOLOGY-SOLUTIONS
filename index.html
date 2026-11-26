@@ -203,12 +203,17 @@
       transition: transform 0.15s, background 0.2s;
     }
 
-    .btn-primary:hover {
+    .btn-primary:hover:not(:disabled) {
       background: #92ff6d;
     }
 
-    .btn-primary:active {
+    .btn-primary:active:not(:disabled) {
       transform: scale(0.97);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
     }
 
     .btn-secondary {
@@ -336,6 +341,29 @@
       padding-bottom: 16px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 20px;
+    }
+
+    .client-profile-box {
+      background: #0d1012;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      font-size: 0.9rem;
+    }
+
+    .client-profile-box span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .client-profile-box strong {
+      color: var(--text);
+      word-break: break-word;
     }
 
     /* About Us */
@@ -553,6 +581,7 @@
       color: var(--neon);
       font-size: 0.9rem;
       display: none;
+      word-break: break-word;
     }
 
     /* Modal for Client Portal */
@@ -577,9 +606,9 @@
       border-radius: 16px;
       padding: 24px;
       width: 100%;
-      max-width: 410px;
+      max-width: 420px;
       display: grid;
-      gap: 13px;
+      gap: 12px;
     }
 
     .modal-top {
@@ -652,10 +681,30 @@
       <div class="dash-top">
         <div>
           <span class="card-badge" style="margin-bottom: 6px;">Authenticated Client Workspace</span>
-          <h2>Welcome, <span id="userDisplayEmail">Client</span></h2>
+          <h2>Welcome, <span id="userDisplayName">Client</span></h2>
         </div>
         <button type="button" class="btn-secondary" id="logoutBtn">Sign Out</button>
       </div>
+
+      <div class="client-profile-box">
+        <div>
+          <span>Client Name</span>
+          <strong id="clientInfoName">—</strong>
+        </div>
+        <div>
+          <span>Client Email</span>
+          <strong id="clientInfoEmail">—</strong>
+        </div>
+        <div>
+          <span>Company / Organization</span>
+          <strong id="clientInfoCompany">—</strong>
+        </div>
+        <div>
+          <span>Account Status</span>
+          <strong style="color: var(--neon);">Active Session</strong>
+        </div>
+      </div>
+
       <div class="grid-3">
         <div class="card">
           <div>
@@ -872,6 +921,7 @@
         <form id="contactForm">
           <input type="text" id="name" placeholder="Your Full Name" required />
           <input type="email" id="email" placeholder="Your Email Address" required />
+          <input type="text" id="company" placeholder="Your Company / Organization (Optional)" />
           <select id="service">
             <option value="Web & Mobile Development">Web &amp; Mobile Development</option>
             <option value="Cloud & DevOps">Cloud &amp; DevOps</option>
@@ -879,8 +929,8 @@
             <option value="General IT Consultation">General IT Consultation</option>
           </select>
           <textarea id="message" rows="4" placeholder="Tell us about your project goals..." required></textarea>
-          <button type="submit" class="btn-primary">Send Message</button>
-          <p id="status">&#10003; Thank you! Your inquiry has been received by E-Technology Solutions.</p>
+          <button type="submit" class="btn-primary" id="contactSubmitBtn">Send Message</button>
+          <p id="status" role="status" aria-live="polite"></p>
         </form>
       </div>
     </section>
@@ -895,19 +945,21 @@
     <div class="modal">
       <div class="modal-top">
         <h3>Client Portal Login</h3>
-        <button type="button" class="close-btn" id="closePortal">&times;</button>
+        <button type="button" class="close-btn" id="closePortal" aria-label="Close modal">&times;</button>
       </div>
       <p style="color: var(--muted); font-size: 0.88rem;">
-        Sign in with your client credentials or request a passwordless sign-in link.
+        Sign in with your client credentials, create an account, or request a sign-in link.
       </p>
-      <input type="email" id="portalEmail" placeholder="Client Email" />
-      <input type="password" id="portalPass" placeholder="Password (min 6 characters)" />
+      <input type="text" id="portalName" placeholder="Client Full Name (for new account)" />
+      <input type="text" id="portalCompany" placeholder="Company Name (optional)" />
+      <input type="email" id="portalEmail" placeholder="Client Email" autocomplete="email" />
+      <input type="password" id="portalPass" placeholder="Password (min 6 characters)" autocomplete="current-password" />
       <div class="auth-actions">
         <button type="button" class="btn-primary" id="portalLoginBtn">Sign In</button>
         <button type="button" class="btn-secondary" id="portalSignupBtn">Create Account</button>
       </div>
       <button type="button" class="link-btn" id="magicLinkBtn">Send sign-in link to email instead</button>
-      <p id="portalMsg" style="color: var(--neon); font-size: 0.85rem; display: none;"></p>
+      <p id="portalMsg" aria-live="polite" style="color: var(--neon); font-size: 0.85rem; display: none; word-break: break-word;"></p>
     </div>
   </div>
 
@@ -917,6 +969,7 @@
       getAuth,
       signInWithEmailAndPassword,
       createUserWithEmailAndPassword,
+      updateProfile,
       sendSignInLinkToEmail,
       isSignInWithEmailLink,
       signInWithEmailLink,
@@ -924,7 +977,7 @@
       signOut
     } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
-    // REPLACE THESE 4 VALUES WITH YOUR REAL FIREBASE CONFIG
+    // REPLACE THESE 4 VALUES WITH YOUR REAL FIREBASE CONFIG FROM CONSOLE
     const firebaseConfig = {
       apiKey: "YOUR_FIREBASE_API_KEY",
       authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -932,53 +985,98 @@
       appId: "YOUR_FIREBASE_APP_ID"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+    // REPLACE WITH YOUR REAL ACCESS KEY FROM https://web3forms.com
+    const WEB3FORMS_ACCESS_KEY = "YOUR_WEB3FORMS_ACCESS_KEY";
+
+    const isFirebaseConfigured =
+      !firebaseConfig.apiKey.startsWith("YOUR_") &&
+      !firebaseConfig.projectId.startsWith("YOUR_") &&
+      !firebaseConfig.appId.startsWith("YOUR_");
+
+    let auth = null;
+    if (isFirebaseConfigured) {
+      const app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+    }
 
     const modal = document.getElementById("portalModal");
     const portalMsg = document.getElementById("portalMsg");
     const openPortalBtn = document.getElementById("openPortal");
     const dashboard = document.getElementById("clientDashboard");
-    const userDisplayEmail = document.getElementById("userDisplayEmail");
+    const userDisplayName = document.getElementById("userDisplayName");
+    const clientInfoName = document.getElementById("clientInfoName");
+    const clientInfoEmail = document.getElementById("clientInfoEmail");
+    const clientInfoCompany = document.getElementById("clientInfoCompany");
 
-    function showStatus(text, isError = false) {
+    function showPortalStatus(text, isError = false) {
       portalMsg.textContent = text;
       portalMsg.style.color = isError ? "var(--danger)" : "var(--neon)";
       portalMsg.style.display = "block";
     }
 
-    // Complete passwordless email link login if opened from email
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      let email = window.localStorage.getItem("emailForSignIn");
-      if (!email) {
-        email = window.prompt("Please confirm your email address to finish signing in:");
+    function ensureAuthReady() {
+      if (!auth) {
+        showPortalStatus(
+          "Firebase is not configured yet. Replace YOUR_FIREBASE_* values in firebaseConfig before signing in.",
+          true
+        );
+        return false;
       }
-      if (email) {
-        signInWithEmailLink(auth, email, window.location.href)
-          .then(() => {
-            window.localStorage.removeItem("emailForSignIn");
-            window.history.replaceState({}, document.title, window.location.pathname);
-          })
-          .catch((err) => alert("Sign-in link error: " + err.message));
-      }
+      return true;
     }
 
-    // Track real-time login state
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        userDisplayEmail.textContent = user.email;
-        dashboard.classList.add("active");
-        openPortalBtn.textContent = "Dashboard";
-        modal.classList.remove("open");
-      } else {
+    function renderClientDashboard(user) {
+      if (!user) {
         dashboard.classList.remove("active");
         openPortalBtn.textContent = "Client Portal";
+        clientInfoName.textContent = "—";
+        clientInfoEmail.textContent = "—";
+        clientInfoCompany.textContent = "—";
+        userDisplayName.textContent = "Client";
+        return;
       }
-    });
+
+      const savedName = window.localStorage.getItem("clientName_" + user.uid);
+      const savedCompany = window.localStorage.getItem("clientCompany_" + user.uid);
+      const displayName = user.displayName || savedName || user.email.split("@")[0];
+
+      userDisplayName.textContent = displayName;
+      clientInfoName.textContent = displayName;
+      clientInfoEmail.textContent = user.email;
+      clientInfoCompany.textContent = savedCompany || "Not specified";
+
+      dashboard.classList.add("active");
+      openPortalBtn.textContent = "Dashboard";
+      modal.classList.remove("open");
+    }
+
+    if (auth) {
+      if (isSignInWithEmailLink(auth, window.location.href)) {
+        let email = window.localStorage.getItem("emailForSignIn");
+        if (!email) {
+          email = window.prompt("Please confirm your email address to finish signing in:");
+        }
+        if (email) {
+          signInWithEmailLink(auth, email, window.location.href)
+            .then(() => {
+              window.localStorage.removeItem("emailForSignIn");
+              window.history.replaceState({}, document.title, window.location.pathname);
+            })
+            .catch((err) => {
+              showPortalStatus("Sign-in link error: " + err.message, true);
+              modal.classList.add("open");
+            });
+        }
+      }
+
+      onAuthStateChanged(auth, (user) => {
+        renderClientDashboard(user);
+      });
+    }
 
     // Modal controls
     openPortalBtn.addEventListener("click", () => {
-      if (auth.currentUser) {
+      if (auth && auth.currentUser) {
         dashboard.scrollIntoView({ behavior: "smooth" });
         return;
       }
@@ -996,38 +1094,70 @@
 
     // Email + Password Sign In
     document.getElementById("portalLoginBtn").addEventListener("click", async () => {
+      if (!ensureAuthReady()) return;
+
       const email = document.getElementById("portalEmail").value.trim();
       const pass = document.getElementById("portalPass").value;
-      if (!email || !pass) return showStatus("Enter both email and password.", true);
+      const nameInput = document.getElementById("portalName").value.trim();
+      const companyInput = document.getElementById("portalCompany").value.trim();
+
+      if (!email || !pass) {
+        return showPortalStatus("Please enter both email and password.", true);
+      }
 
       try {
-        showStatus("Signing in...");
-        await signInWithEmailAndPassword(auth, email, pass);
+        showPortalStatus("Signing in...");
+        const cred = await signInWithEmailAndPassword(auth, email, pass);
+        if (nameInput) {
+          await updateProfile(cred.user, { displayName: nameInput });
+          window.localStorage.setItem("clientName_" + cred.user.uid, nameInput);
+        }
+        if (companyInput) {
+          window.localStorage.setItem("clientCompany_" + cred.user.uid, companyInput);
+        }
+        renderClientDashboard(cred.user);
       } catch (err) {
-        showStatus(err.message, true);
+        showPortalStatus(err.message, true);
       }
     });
 
     // Create New Client Account
     document.getElementById("portalSignupBtn").addEventListener("click", async () => {
+      if (!ensureAuthReady()) return;
+
+      const nameInput = document.getElementById("portalName").value.trim();
+      const companyInput = document.getElementById("portalCompany").value.trim();
       const email = document.getElementById("portalEmail").value.trim();
       const pass = document.getElementById("portalPass").value;
+
       if (!email || pass.length < 6) {
-        return showStatus("Enter an email and a password of at least 6 characters.", true);
+        return showPortalStatus("Enter a valid email and a password of at least 6 characters.", true);
       }
 
       try {
-        showStatus("Creating account...");
-        await createUserWithEmailAndPassword(auth, email, pass);
+        showPortalStatus("Creating client account...");
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        if (nameInput) {
+          await updateProfile(cred.user, { displayName: nameInput });
+          window.localStorage.setItem("clientName_" + cred.user.uid, nameInput);
+        }
+        if (companyInput) {
+          window.localStorage.setItem("clientCompany_" + cred.user.uid, companyInput);
+        }
+        renderClientDashboard(cred.user);
       } catch (err) {
-        showStatus(err.message, true);
+        showPortalStatus(err.message, true);
       }
     });
 
-    // Send Real Magic Sign-In Link to Email
+    // Send Magic Sign-In Link to Email
     document.getElementById("magicLinkBtn").addEventListener("click", async () => {
+      if (!ensureAuthReady()) return;
+
       const email = document.getElementById("portalEmail").value.trim();
-      if (!email) return showStatus("Enter your email address first.", true);
+      if (!email) {
+        return showPortalStatus("Enter your email address first.", true);
+      }
 
       const actionCodeSettings = {
         url: window.location.origin + window.location.pathname,
@@ -1035,25 +1165,88 @@
       };
 
       try {
-        showStatus("Sending sign-in link...");
+        showPortalStatus("Sending sign-in link...");
         await sendSignInLinkToEmail(auth, email, actionCodeSettings);
         window.localStorage.setItem("emailForSignIn", email);
-        showStatus("Sign-in link sent! Check your inbox (and spam folder) at " + email);
+        showPortalStatus("Sign-in link sent! Check your inbox (and spam folder) at " + email);
       } catch (err) {
-        showStatus(err.message, true);
+        showPortalStatus(err.message, true);
       }
     });
 
     // Sign Out
     document.getElementById("logoutBtn").addEventListener("click", async () => {
-      await signOut(auth);
+      if (auth) {
+        await signOut(auth);
+      }
+      renderClientDashboard(null);
     });
 
-    // Contact Form Submission
-    document.getElementById("contactForm").addEventListener("submit", function (e) {
+    // Contact Form Submission -> Sends Email with Full Client Details via Web3Forms
+    const contactForm = document.getElementById("contactForm");
+    const statusEl = document.getElementById("status");
+    const contactSubmitBtn = document.getElementById("contactSubmitBtn");
+
+    contactForm.addEventListener("submit", async function (e) {
       e.preventDefault();
-      document.getElementById("status").style.display = "block";
-      this.reset();
+
+      if (!WEB3FORMS_ACCESS_KEY || WEB3FORMS_ACCESS_KEY.startsWith("YOUR_")) {
+        statusEl.style.color = "var(--danger)";
+        statusEl.textContent = "Please add your Web3Forms access key in WEB3FORMS_ACCESS_KEY before submitting.";
+        statusEl.style.display = "block";
+        return;
+      }
+
+      const clientName = document.getElementById("name").value.trim();
+      const clientEmail = document.getElementById("email").value.trim();
+      const clientCompany = document.getElementById("company").value.trim() || "Not provided";
+      const selectedService = document.getElementById("service").value;
+      const projectMessage = document.getElementById("message").value.trim();
+
+      contactSubmitBtn.disabled = true;
+      contactSubmitBtn.textContent = "Sending...";
+      statusEl.style.display = "none";
+
+      const payload = {
+        access_key: WEB3FORMS_ACCESS_KEY,
+        subject: "New Client Inquiry — E-Technology Solutions",
+        from_name: "E-Technology Solutions Website",
+        replyto: clientEmail,
+        name: clientName,
+        email: clientEmail,
+        company: clientCompany,
+        service: selectedService,
+        message: projectMessage
+      };
+
+      try {
+        const res = await fetch("https://api.web3forms.com/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          statusEl.style.color = "var(--neon)";
+          statusEl.textContent = "✓ Thank you! Your details have been sent to sweetyyymokshiii@gmail.com.";
+          statusEl.style.display = "block";
+          contactForm.reset();
+        } else {
+          throw new Error(data.message || "Failed to send message.");
+        }
+      } catch (err) {
+        statusEl.style.color = "var(--danger)";
+        statusEl.textContent = "Error sending message: " + err.message;
+        statusEl.style.display = "block";
+      } finally {
+        contactSubmitBtn.disabled = false;
+        contactSubmitBtn.textContent = "Send Message";
+      }
     });
   </script>
 
