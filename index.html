@@ -22,6 +22,7 @@ const firebaseConfig = {
       --neon-glow: rgba(124, 255, 79, 0.25);
       --text: #f3f6f7;
       --muted: #98a4aa;
+      --danger: #ff5c5c;
     }
 
     * {
@@ -226,6 +227,7 @@ const firebaseConfig = {
       text-decoration: none;
       border: 1px solid var(--border);
       font-size: 0.95rem;
+      cursor: pointer;
       transition: border-color 0.2s;
     }
 
@@ -314,6 +316,32 @@ const firebaseConfig = {
     .section-header p {
       color: var(--muted);
       font-size: 0.95rem;
+    }
+
+    /* Client Dashboard (Unlocked After Login) */
+    #clientDashboard {
+      display: none;
+      margin-top: 24px;
+      background: var(--surface);
+      border: 1px solid rgba(124, 255, 79, 0.45);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 0 30px rgba(124, 255, 79, 0.08);
+    }
+
+    #clientDashboard.active {
+      display: block;
+    }
+
+    .dash-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
     }
 
     /* About Us */
@@ -555,9 +583,9 @@ const firebaseConfig = {
       border-radius: 16px;
       padding: 24px;
       width: 100%;
-      max-width: 400px;
+      max-width: 410px;
       display: grid;
-      gap: 14px;
+      gap: 13px;
     }
 
     .modal-top {
@@ -572,6 +600,22 @@ const firebaseConfig = {
       color: var(--muted);
       font-size: 1.4rem;
       cursor: pointer;
+    }
+
+    .auth-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .link-btn {
+      background: none;
+      border: none;
+      color: var(--neon);
+      font-size: 0.85rem;
+      text-decoration: underline;
+      cursor: pointer;
+      text-align: left;
     }
 
     footer {
@@ -609,6 +653,40 @@ const firebaseConfig = {
   </header>
 
   <main id="top" class="container">
+    <!-- Authenticated Client Dashboard (Hidden until user signs in) -->
+    <section id="clientDashboard" aria-live="polite">
+      <div class="dash-top">
+        <div>
+          <span class="card-badge" style="margin-bottom: 6px;">Authenticated Client Workspace</span>
+          <h2>Welcome, <span id="userDisplayEmail">Client</span></h2>
+        </div>
+        <button type="button" class="btn-secondary" id="logoutBtn">Sign Out</button>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <div>
+            <span class="card-badge">Active Sprint</span>
+            <h3>Project Milestones</h3>
+            <p>Phase 2 Cloud Deployment &amp; API Integration — <strong>85% Complete</strong>.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div>
+            <span class="card-badge">Live Telemetry</span>
+            <h3>Server Health</h3>
+            <p>Production Cluster Status: <strong style="color: var(--neon);">Operational (99.98% SLA)</strong>.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div>
+            <span class="card-badge">Priority Desk</span>
+            <h3>Dedicated Support</h3>
+            <p>Direct engineering ticket channel active. Response SLA: &lt; 2 hours.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Hero -->
     <section class="hero">
       <div>
@@ -826,28 +904,90 @@ const firebaseConfig = {
         <button type="button" class="close-btn" id="closePortal">&times;</button>
       </div>
       <p style="color: var(--muted); font-size: 0.88rem;">
-        Sign in to view project milestones, server status, and support tickets.
+        Sign in with your client credentials or request a passwordless sign-in link.
       </p>
       <input type="email" id="portalEmail" placeholder="Client Email" />
-      <input type="password" id="portalPass" placeholder="Password" />
-      <button type="button" class="btn-primary" id="portalLoginBtn">Sign In</button>
+      <input type="password" id="portalPass" placeholder="Password (min 6 characters)" />
+      <div class="auth-actions">
+        <button type="button" class="btn-primary" id="portalLoginBtn">Sign In</button>
+        <button type="button" class="btn-secondary" id="portalSignupBtn">Create Account</button>
+      </div>
+      <button type="button" class="link-btn" id="magicLinkBtn">Send sign-in link to email instead</button>
       <p id="portalMsg" style="color: var(--neon); font-size: 0.85rem; display: none;"></p>
     </div>
   </div>
 
-  <script>
-    // Contact Form Submission
-    document.getElementById("contactForm").addEventListener("submit", function (e) {
-      e.preventDefault();
-      document.getElementById("status").style.display = "block";
-      this.reset();
-    });
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      sendSignInLinkToEmail,
+      isSignInWithEmailLink,
+      signInWithEmailLink,
+      onAuthStateChanged,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
-    // Client Portal Modal Controls
+    // REPLACE THESE 4 VALUES WITH YOUR REAL FIREBASE CONFIG
+    const firebaseConfig = {
+      apiKey: "YOUR_FIREBASE_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      appId: "YOUR_FIREBASE_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
     const modal = document.getElementById("portalModal");
     const portalMsg = document.getElementById("portalMsg");
+    const openPortalBtn = document.getElementById("openPortal");
+    const dashboard = document.getElementById("clientDashboard");
+    const userDisplayEmail = document.getElementById("userDisplayEmail");
 
-    document.getElementById("openPortal").addEventListener("click", () => {
+    function showStatus(text, isError = false) {
+      portalMsg.textContent = text;
+      portalMsg.style.color = isError ? "var(--danger)" : "var(--neon)";
+      portalMsg.style.display = "block";
+    }
+
+    // Complete passwordless email link login if opened from email
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      let email = window.localStorage.getItem("emailForSignIn");
+      if (!email) {
+        email = window.prompt("Please confirm your email address to finish signing in:");
+      }
+      if (email) {
+        signInWithEmailLink(auth, email, window.location.href)
+          .then(() => {
+            window.localStorage.removeItem("emailForSignIn");
+            window.history.replaceState({}, document.title, window.location.pathname);
+          })
+          .catch((err) => alert("Sign-in link error: " + err.message));
+      }
+    }
+
+    // Track real-time login state
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        userDisplayEmail.textContent = user.email;
+        dashboard.classList.add("active");
+        openPortalBtn.textContent = "Dashboard";
+        modal.classList.remove("open");
+      } else {
+        dashboard.classList.remove("active");
+        openPortalBtn.textContent = "Client Portal";
+      }
+    });
+
+    // Modal controls
+    openPortalBtn.addEventListener("click", () => {
+      if (auth.currentUser) {
+        dashboard.scrollIntoView({ behavior: "smooth" });
+        return;
+      }
       portalMsg.style.display = "none";
       modal.classList.add("open");
     });
@@ -860,12 +1000,66 @@ const firebaseConfig = {
       if (e.target === modal) modal.classList.remove("open");
     });
 
-    document.getElementById("portalLoginBtn").addEventListener("click", () => {
+    // Email + Password Sign In
+    document.getElementById("portalLoginBtn").addEventListener("click", async () => {
       const email = document.getElementById("portalEmail").value.trim();
-      portalMsg.textContent = email
-        ? "Demo mode: Portal access link sent to " + email
-        : "Please enter your client email address.";
-      portalMsg.style.display = "block";
+      const pass = document.getElementById("portalPass").value;
+      if (!email || !pass) return showStatus("Enter both email and password.", true);
+
+      try {
+        showStatus("Signing in...");
+        await signInWithEmailAndPassword(auth, email, pass);
+      } catch (err) {
+        showStatus(err.message, true);
+      }
+    });
+
+    // Create New Client Account
+    document.getElementById("portalSignupBtn").addEventListener("click", async () => {
+      const email = document.getElementById("portalEmail").value.trim();
+      const pass = document.getElementById("portalPass").value;
+      if (!email || pass.length < 6) {
+        return showStatus("Enter an email and a password of at least 6 characters.", true);
+      }
+
+      try {
+        showStatus("Creating account...");
+        await createUserWithEmailAndPassword(auth, email, pass);
+      } catch (err) {
+        showStatus(err.message, true);
+      }
+    });
+
+    // Send Real Magic Sign-In Link to Email
+    document.getElementById("magicLinkBtn").addEventListener("click", async () => {
+      const email = document.getElementById("portalEmail").value.trim();
+      if (!email) return showStatus("Enter your email address first.", true);
+
+      const actionCodeSettings = {
+        url: window.location.origin + window.location.pathname,
+        handleCodeInApp: true
+      };
+
+      try {
+        showStatus("Sending sign-in link...");
+        await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+        window.localStorage.setItem("emailForSignIn", email);
+        showStatus("Sign-in link sent! Check your inbox (and spam folder) at " + email);
+      } catch (err) {
+        showStatus(err.message, true);
+      }
+    });
+
+    // Sign Out
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await signOut(auth);
+    });
+
+    // Contact Form Submission
+    document.getElementById("contactForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      document.getElementById("status").style.display = "block";
+      this.reset();
     });
   </script>
 
