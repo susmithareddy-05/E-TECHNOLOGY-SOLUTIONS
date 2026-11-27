@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="google-site-verification" content="vsq4Zth0_qiaJiuZwhMh0lQWgY9W8g3UJ7oxdsFLHko" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="E-Technology Solutions delivers web and mobile applications, cloud and DevOps automation, and cybersecurity services." />
   <title>E-Technology Solutions | Future-Ready Tech Solutions</title>
   <style>
@@ -28,6 +28,8 @@
 
     html {
       scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
 
     body {
@@ -171,7 +173,7 @@
     }
 
     .hero h1 {
-      font-size: clamp(2.2rem, 6vw, 3.6rem);
+      font-size: clamp(1.85rem, 4.2vw, 2.75rem);
       line-height: 1.12;
       color: var(--neon);
       text-shadow: 0 0 26px var(--neon-glow);
@@ -405,12 +407,16 @@
     /* Client Dashboard (Unlocked After Login) */
     #clientDashboard {
       display: none;
-      margin-top: 24px;
+      margin-top: 16px;
       background: var(--surface);
       border: 1px solid rgba(124, 255, 79, 0.45);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 0 30px rgba(124, 255, 79, 0.08);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 0 24px rgba(124, 255, 79, 0.08);
+    }
+
+    #clientDashboard h2 {
+      font-size: 1.25rem;
     }
 
     #clientDashboard.active {
@@ -608,8 +614,7 @@
     }
 
     @media (max-width: 780px) {
-      .contact-wrap {
-        grid-template-columns: 1fr;
+      .contact-wrap {grid-template-columns: 1fr;
       }
     }
 
@@ -1096,9 +1101,9 @@
         <button type="button" class="close-btn" id="closePortal" aria-label="Close modal">&times;</button>
       </div>
       <p style="color: var(--muted); font-size: 0.88rem;">
-        Sign in with your client credentials, create an account, or request a sign-in link.
+        Sign in with your registered credentials, or fill in your full name, email, and password to create a new account.
       </p>
-      <input type="text" id="portalName" placeholder="Client Full Name (for new account)" />
+      <input type="text" id="portalName" placeholder="Client Full Name (required for Sign Up)" />
       <input type="text" id="portalCompany" placeholder="Company Name (optional)" />
       <input type="email" id="portalEmail" placeholder="Client Email" autocomplete="email" />
       <input type="password" id="portalPass" placeholder="Password (min 6 characters)" autocomplete="current-password" />
@@ -1109,9 +1114,7 @@
       <button type="button" class="link-btn" id="magicLinkBtn">Send sign-in link to email instead</button>
       <p id="portalMsg" aria-live="polite" style="color: var(--neon); font-size: 0.85rem; display: none; word-break: break-word;"></p>
     </div>
-  </div>
-
-  <script>
+  </div>  <script>
     (function () {
       const OWNER_EMAIL = "sweetyyymokshiii@gmail.com";
       const USERS_STORAGE_KEY = "etech_portal_users_v1";
@@ -1325,54 +1328,45 @@
         if (e.target === modal) modal.classList.remove("open");
       });
 
+      function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      }
+
       document.getElementById("portalLoginBtn").addEventListener("click", () => {
         const email = document.getElementById("portalEmail").value.trim().toLowerCase();
         const pass = document.getElementById("portalPass").value;
         const nameInput = document.getElementById("portalName").value.trim();
         const companyInput = document.getElementById("portalCompany").value.trim();
 
-        if (!email || !pass) {
-          return showPortalStatus("Please enter both email and password.", true);
+        if (!email || !isValidEmail(email)) {
+          return showPortalStatus("Error: Please enter a valid email address.", true);
+        }
+        if (!pass || pass.length < 6) {
+          return showPortalStatus("Error: Please enter a valid password (min 6 characters).", true);
         }
 
         const users = loadUsers();
         const existingUser = users.find((u) => u.email === email);
 
-        if (existingUser) {
-          if (existingUser.pass !== pass) {return showPortalStatus("Incorrect password for this account.", true);
-          }
-          if (nameInput) existingUser.name = nameInput;
-          if (companyInput) existingUser.company = companyInput;
-          saveUsers(users);
-          const sessionObj = {
-            email: existingUser.email,
-            name: existingUser.name || email.split("@")[0],
-            company: existingUser.company || "Not specified"
-          };
-          setSession(sessionObj);
-          renderClientDashboard(sessionObj);
-          dashboard.scrollIntoView({ behavior: "smooth" });
-        } else {
-          if (pass.length < 6) {
-            return showPortalStatus("Password must be at least 6 characters.", true);
-          }
-          const newUser = {
-            email,
-            pass,
-            name: nameInput || email.split("@")[0],
-            company: companyInput || "Not specified"
-          };
-          users.push(newUser);
-          saveUsers(users);
-          const sessionObj = {
-            email: newUser.email,
-            name: newUser.name,
-            company: newUser.company
-          };
-          setSession(sessionObj);
-          renderClientDashboard(sessionObj);
-          dashboard.scrollIntoView({ behavior: "smooth" });
+        if (!existingUser) {
+          return showPortalStatus("Error: No account found with this email. Please sign up first.", true);
         }
+        if (!existingUser.pass || existingUser.pass !== pass) {
+          return showPortalStatus("Error: Incorrect password for this account.", true);
+        }
+
+        if (nameInput) existingUser.name = nameInput;
+        if (companyInput) existingUser.company = companyInput;
+        saveUsers(users);
+
+        const sessionObj = {
+          email: existingUser.email,
+          name: existingUser.name,
+          company: existingUser.company || "Not specified"
+        };
+        setSession(sessionObj);
+        renderClientDashboard(sessionObj);
+        dashboard.scrollIntoView({ behavior: "smooth" });
       });
 
       document.getElementById("portalSignupBtn").addEventListener("click", () => {
@@ -1381,23 +1375,26 @@
         const email = document.getElementById("portalEmail").value.trim().toLowerCase();
         const pass = document.getElementById("portalPass").value;
 
-        if (!email || !email.includes("@")) {
-          return showPortalStatus("Please enter a valid client email address.", true);
+        if (!nameInput || nameInput.length < 2) {
+          return showPortalStatus("Error: Please enter your full name to sign up.", true);
         }
-        if (pass.length < 6) {
-          return showPortalStatus("Password must be at least 6 characters.", true);
+        if (!email || !isValidEmail(email)) {
+          return showPortalStatus("Error: Please enter a valid client email address.", true);
+        }
+        if (!pass || pass.length < 6) {
+          return showPortalStatus("Error: Password must be at least 6 characters.", true);
         }
 
         const users = loadUsers();
         const alreadyExists = users.some((u) => u.email === email);
         if (alreadyExists) {
-          return showPortalStatus("An account with this email already exists. Tap Sign In.", true);
+          return showPortalStatus("Error: Account already exists. Tap Sign In.", true);
         }
 
         const newUser = {
           email,
           pass,
-          name: nameInput || email.split("@")[0],
+          name: nameInput,
           company: companyInput || "Not specified"
         };
         users.push(newUser);
@@ -1411,38 +1408,17 @@
         setSession(sessionObj);
         renderClientDashboard(sessionObj);
         dashboard.scrollIntoView({ behavior: "smooth" });
-      });
-
-      document.getElementById("magicLinkBtn").addEventListener("click", () => {
+      });document.getElementById("magicLinkBtn").addEventListener("click", () => {
         const email = document.getElementById("portalEmail").value.trim().toLowerCase();
-        const nameInput = document.getElementById("portalName").value.trim();
-        const companyInput = document.getElementById("portalCompany").value.trim();
-
-        if (!email || !email.includes("@")) {
-          return showPortalStatus("Enter a valid email address first.", true);
+        if (!email || !isValidEmail(email)) {
+          return showPortalStatus("Error: Enter a valid registered email address first.", true);
         }
-
         const users = loadUsers();
-        let existing = users.find((u) => u.email === email);
+        const existing = users.find((u) => u.email === email);
         if (!existing) {
-          existing = {
-            email,
-            pass: "",
-            name: nameInput || email.split("@")[0],
-            company: companyInput || "Not specified"
-          };
-          users.push(existing);
-          saveUsers(users);
+          return showPortalStatus("Error: Email not registered. Please create an account first.", true);
         }
-
-        const sessionObj = {
-          email: existing.email,
-          name: nameInput || existing.name || email.split("@")[0],
-          company: companyInput || existing.company || "Not specified"
-        };
-        setSession(sessionObj);
-        renderClientDashboard(sessionObj);
-        dashboard.scrollIntoView({ behavior: "smooth" });
+        showPortalStatus("Sign-in link sent to " + existing.email + ". Use your password to sign in.", false);
       });
 
       document.getElementById("logoutBtn").addEventListener("click", () => {
